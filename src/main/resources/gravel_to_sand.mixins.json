@@ -3,7 +3,8 @@
 	"package": "gravel_to_sand.graveltosand.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ExampleMixin"
+      "HopperBlockEntityMixin",
+      "ItemEntityMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
