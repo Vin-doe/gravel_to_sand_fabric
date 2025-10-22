@@ -90,21 +90,22 @@ public class Gravel_to_sand implements ModInitializer {
                         continue;
                     }
 
-                    if(world.getRandom().nextDouble() > CONVERSION_CHANCE){
-                        continue;
-                    }
-
                     //all conditions met, lovely stuff
                     int stackSize = itemEntity.getStack().getCount();
 
                     //public ItemEntity(World world, double x, double y, double z, ItemStack stack)
 
-                    int x = 0, waterLevel = blockState.get(LeveledCauldronBlock.LEVEL);
-                    while(waterLevel > 0 && x < stackSize){
-                        if (world.getRandom().nextDouble() < WATER_DEPLEAT_CHANCE) {
-                            waterLevel--;
+                    int x = 0, failed = 0, waterLevel = blockState.get(LeveledCauldronBlock.LEVEL);
+                    while(waterLevel > 0 && x + failed < stackSize){
+                        if(world.getRandom().nextDouble() > CONVERSION_CHANCE) {
+                            if (world.getRandom().nextDouble() < WATER_DEPLEAT_CHANCE) {
+                                waterLevel--;
+                            }
+                            x++;
                         }
-                        x++;
+                        else{
+                            failed++;
+                        }
                     }
 
                     if(waterLevel <= 0){
