@@ -17,6 +17,8 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,12 +117,18 @@ public class Gravel_to_sand implements ModInitializer {
                         world.setBlockState(itemEntity.getBlockPos(), blockState.with(LeveledCauldronBlock.LEVEL, waterLevel));
                     }
 
-                    ItemStack sandStack = new ItemStack(Items.SAND,  x);
+                    if (x > 0){
+                        ItemStack sandStack = new ItemStack(Items.SAND,  x);
 
-                    ItemEntity sandEntity = new ItemEntity(world, itemEntity.getEntityPos().x, itemEntity.getEntityPos().y, itemEntity.getEntityPos().z, sandStack);
-                    sandEntity.setVelocity(0, 0, 0);
-                    world.spawnEntity(sandEntity);
+                        ItemEntity sandEntity = new ItemEntity(world, itemEntity.getEntityPos().x, itemEntity.getEntityPos().y, itemEntity.getEntityPos().z, sandStack);
+                        sandEntity.setVelocity(0, 0, 0);
+                        world.spawnEntity(sandEntity);
 
+                        //pop sound :3
+                        if(!world.isClient()){
+                            world.playSound(null, itemEntity.getBlockPos(), SoundEvents.ENTITY_CHICKEN_EGG, SoundCategory.BLOCKS, 1.0F, 1.0F);
+                        }
+                    }
 
                     //set the stack size of the gravel item entity to stackSize - converted amount (if 0 then just kill the item entity)
                     if(stackSize - x > 0){
@@ -130,6 +138,8 @@ public class Gravel_to_sand implements ModInitializer {
                     else{
                         itemEntity.kill(world);
                     }
+
+
                 }
             }
         }
