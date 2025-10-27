@@ -20,11 +20,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 //public static boolean HopperBlockEntity.extract(Inventory inventory, ItemEntity itemEntity)
 @Mixin(HopperBlockEntity.class)
 public abstract class HopperBlockEntityMixin {
-    @Shadow
-    protected abstract boolean canInsert(Inventory inventory, ItemStack stack, int slot, @Nullable Direction side);
+
 
     @Unique
-    private static boolean canInsert(ItemStack itemStack, Inventory inventory) {
+    private static boolean canInsertStack(ItemStack itemStack, Inventory inventory) {
         for(int i = 0; i < inventory.size(); i++) {
             Item item = itemStack.getItem();
             if(inventory.getStack(i).getItem().equals(item)) {
@@ -40,7 +39,7 @@ public abstract class HopperBlockEntityMixin {
 	private static void injectExtract(Inventory inventory, ItemEntity itemEntity, CallbackInfoReturnable<Boolean> ci) {
 
         NbtComponent tag = itemEntity.getStack().get(DataComponentTypes.CUSTOM_DATA);
-        if(tag != null && canInsert(itemEntity.getStack(), inventory)){
+        if(tag != null && canInsertStack(itemEntity.getStack(), inventory)){
             NbtCompound nbt = tag.copyNbt();
             nbt.remove("waterCauldronAge");
             if(!nbt.isEmpty()){
