@@ -1,16 +1,14 @@
 package gravel_to_sand.graveltosand;
 
+import gravel_to_sand.graveltosand.config.Config;
 import net.fabricmc.api.ModInitializer;
 
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.*;
-import net.minecraft.block.entity.Hopper;
+import net.minecraft.block.entity.HopperBlockEntity;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
-import net.minecraft.inventory.SidedInventory;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
@@ -19,22 +17,20 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.world.World;
+import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Random;
 
 import static net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.*;
 
 public class Gravel_to_sand implements ModInitializer {
 	public static final String MOD_ID = "gravel_to_sand";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-    public static final double WATER_DEPLEAT_CHANCE = 0.1;
-    public  static  final double CONVERSION_CHANCE = 0.5;
+
+    private final List<CauldronInfo> checkedCauldrons = new ArrayList<>();
 
 	@Override
 	public void onInitialize() {
@@ -43,7 +39,7 @@ public class Gravel_to_sand implements ModInitializer {
 		// Proceed with mild caution.
 
         START_SERVER_TICK.register(this::processItems);
-
+        Config.load();
 		LOGGER.info(MOD_ID + " has been initialized!");
 	}
 
@@ -52,19 +48,19 @@ public class Gravel_to_sand implements ModInitializer {
         NbtComponent tag = itemEntity.getStack().get(DataComponentTypes.CUSTOM_DATA);
         if(tag == null){
             NbtCompound nbt = new NbtCompound();
-            nbt.putInt("waterCauldronAge", 20);
+            nbt.putInt("waterCauldronAge", Config.CAULDRON_TIME);
             tag = NbtComponent.of(nbt);
             itemEntity.getStack().set(DataComponentTypes.CUSTOM_DATA, tag);
             return false;
         }
+
         NbtCompound nbt = tag.copyNbt();
         boolean succeeded = false;
         if(!nbt.contains("waterCauldronAge")){
-            nbt.putInt("waterCauldronAge", 20);
+            nbt.putInt("waterCauldronAge", Config.CAULDRON_TIME);
         }
-        else if(nbt.getInt("waterCauldronAge").get() == 0){
+        else if(nbt.getInt("waterCauldronAge").get() <= 0){
             //if 1 second has passed in the cauldron
-            nbt.remove("waterCauldronAge");
             succeeded = true;
         }
         else{
@@ -72,38 +68,59 @@ public class Gravel_to_sand implements ModInitializer {
             age--;
             nbt.putInt("waterCauldronAge", age);
         }
+
         NbtComponent newTag = NbtComponent.of(nbt);
         itemEntity.getStack().set(DataComponentTypes.CUSTOM_DATA, newTag);
         return succeeded;
     }
 
     public void processItems(MinecraftServer minecraftServer) {
+        //check if cauldron has been in list for X ticks (would mean having more info than just block pos due to multiple dimensions)
+        List<CauldronInfo> toRemove = new ArrayList<>();
+        for (CauldronInfo cauldronInfo : checkedCauldrons){
+            if(cauldronInfo.decrementTicks()){
+                toRemove.add(cauldronInfo);
+            }
+        }
+        checkedCauldrons.removeAll(toRemove);
+
         for(ServerWorld world : minecraftServer.getWorlds()) {
             for(ItemEntity itemEntity : world.getEntitiesByType(EntityType.ITEM, EntityPredicates.VALID_ENTITY)) {
                 if (!itemEntity.getStack().isOf(Items.GRAVEL)) {
                     continue;
                 }
 
-                BlockState blockState = world.getBlockState(itemEntity.getBlockPos());
-                if(blockState.getBlock() instanceof LeveledCauldronBlock cauldronBlock){
-                    //add condition and nbt tag or something for measuring how long it's been in there
+                BlockPos blockPos = itemEntity.getBlockPos();
+                BlockState blockState = world.getBlockState(blockPos);
 
+                if(blockState.getBlock() instanceof LeveledCauldronBlock cauldronBlock){
+                    CauldronInfo cauldronInfo = new CauldronInfo(Config.CAULDRON_TICKS, blockPos, world.getRegistryKey().hashCode());
                     if(!attemptHalflife(itemEntity)){
                         continue;
                     }
 
+                    if(checkedCauldrons.contains(cauldronInfo)){
+                        continue;
+                    }
+                    else{
+                        checkedCauldrons.add(cauldronInfo);
+                    }
+
+
                     //all conditions met, lovely stuff
                     int stackSize = itemEntity.getStack().getCount();
 
-                    //public ItemEntity(World world, double x, double y, double z, ItemStack stack)
-
-                    int x = 0, failed = 0, waterLevel = blockState.get(LeveledCauldronBlock.LEVEL);
-                    while(waterLevel > 0 && x + failed < stackSize){
-                        if(world.getRandom().nextDouble() > CONVERSION_CHANCE) {
-                            if (world.getRandom().nextDouble() < WATER_DEPLEAT_CHANCE) {
+                    boolean succeeded = false;
+                    int failed = 0, waterLevel = blockState.get(LeveledCauldronBlock.LEVEL);
+                    while(failed < stackSize){
+                        if(world.getRandom().nextDouble() < Config.CONVERSION_CHANCE) {
+                            if (world.getRandom().nextDouble() < Config.WATER_DEPLEAT_CHANCE) {
                                 waterLevel--;
                             }
-                            x++;
+                            succeeded = true;
+
+                            // converts 1 item from the stack if possible, if it either converts, it'll break out of the loop
+                            break;
                         }
                         else{
                             failed++;
@@ -111,14 +128,14 @@ public class Gravel_to_sand implements ModInitializer {
                     }
 
                     if(waterLevel <= 0){
-                        world.setBlockState(itemEntity.getBlockPos(), Blocks.CAULDRON.getDefaultState());
+                        world.setBlockState(blockPos, Blocks.CAULDRON.getDefaultState());
                     }
                     else{
-                        world.setBlockState(itemEntity.getBlockPos(), blockState.with(LeveledCauldronBlock.LEVEL, waterLevel));
+                        world.setBlockState(blockPos, blockState.with(LeveledCauldronBlock.LEVEL, waterLevel));
                     }
 
-                    if (x > 0){
-                        ItemStack sandStack = new ItemStack(Items.SAND,  x);
+                    if (succeeded){
+                        ItemStack sandStack = new ItemStack(Items.SAND);
 
                         ItemEntity sandEntity = new ItemEntity(world, itemEntity.getEntityPos().x, itemEntity.getEntityPos().y, itemEntity.getEntityPos().z, sandStack);
                         sandEntity.setVelocity(0, 0, 0);
@@ -126,20 +143,17 @@ public class Gravel_to_sand implements ModInitializer {
 
                         //pop sound :3
                         if(!world.isClient()){
-                            world.playSound(null, itemEntity.getBlockPos(), SoundEvents.ENTITY_CHICKEN_EGG, SoundCategory.BLOCKS, 1.0F, 1.0F);
+                            world.playSound(null, blockPos, SoundEvents.ENTITY_CHICKEN_EGG, SoundCategory.BLOCKS, 1.0F, 1.0F);
+                        }
+
+                        //set the stack size of the gravel item entity to stackSize - converted amount (if 0 then just kill the item entity)
+                        if(stackSize - 1 > 0){
+                            itemEntity.getStack().setCount(stackSize - 1);
+                        }
+                        else{
+                            itemEntity.kill(world);
                         }
                     }
-
-                    //set the stack size of the gravel item entity to stackSize - converted amount (if 0 then just kill the item entity)
-                    if(stackSize - x > 0){
-                        ItemStack newGravelStack = new  ItemStack(Items.GRAVEL, stackSize - x);
-                        itemEntity.setStack(newGravelStack);
-                    }
-                    else{
-                        itemEntity.kill(world);
-                    }
-
-
                 }
             }
         }
