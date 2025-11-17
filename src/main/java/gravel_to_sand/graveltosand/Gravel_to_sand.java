@@ -114,7 +114,7 @@ public class Gravel_to_sand implements ModInitializer {
                     int failed = 0, waterLevel = blockState.get(LeveledCauldronBlock.LEVEL);
                     while(failed < stackSize){
                         if(world.getRandom().nextDouble() < Config.CONVERSION_CHANCE) {
-                            if (world.getRandom().nextDouble() < Config.WATER_DEPLEAT_CHANCE) {
+                            if (world.getRandom().nextDouble() < Config.WATER_DEPLETE_CHANCE) {
                                 waterLevel--;
                             }
                             succeeded = true;
