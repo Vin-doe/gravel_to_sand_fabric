@@ -1,6 +1,7 @@
 plugins {
 	id 'fabric-loom' version "${loom_version}"
 	id 'maven-publish'
+    id "com.github.johnrengelman.shadow" version "8.1.1"
 }
 
 version = project.mod_version
@@ -37,11 +38,17 @@ dependencies {
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     //config
-    implementation "com.moandjiezana.toml:toml4j:0.7.2"
+    // https://mvnrepository.com/artifact/com.moandjiezana.toml/toml4j
+    modImplementation "com.moandjiezana.toml:toml4j:0.7.2"
+    include("com.moandjiezana.toml:toml4j:0.7.2")
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	
+}
+
+tasks.withType(com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar){
+    relocate 'com.moandjiezana.toml', 'graveltosand.toml'
 }
 
 processResources {

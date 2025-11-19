@@ -16,7 +16,7 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"gravel_to_sand.graveltosand.Gravel_to_sand"
+          "gravel_to_sand.graveltosand.GravelToSand"
 		],
 		"client": [
 			"gravel_to_sand.graveltosand.Gravel_to_sandClient"

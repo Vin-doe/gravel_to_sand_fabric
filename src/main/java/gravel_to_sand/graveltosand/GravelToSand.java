@@ -1,10 +1,12 @@
 package gravel_to_sand.graveltosand;
 
 import gravel_to_sand.graveltosand.config.Config;
+import net.fabricmc.api.DedicatedServerModInitializer;
+import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.*;
-import net.minecraft.block.entity.HopperBlockEntity;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.EntityType;
@@ -26,7 +28,7 @@ import java.util.List;
 
 import static net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.*;
 
-public class Gravel_to_sand implements ModInitializer {
+public class GravelToSand implements ModInitializer {
 	public static final String MOD_ID = "gravel_to_sand";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 

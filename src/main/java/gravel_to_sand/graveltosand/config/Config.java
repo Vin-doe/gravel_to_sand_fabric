@@ -82,6 +82,10 @@ public class Config {
         TomlWriter tomlWriter = new TomlWriter();
         HashMap<String, Object> root = new HashMap<>();
 
+        WATER_DEPLETE_CHANCE = 0.1;
+        CONVERSION_CHANCE = 0.01;
+        CAULDRON_TIME = 20;
+        CAULDRON_TICKS = 5;
         root.put("waterDepleteChance", 0.1);
         root.put("conversionChance", 0.01);
         root.put("cauldron_time", 20);
@@ -106,6 +110,7 @@ public class Config {
 
         if (WATER_DEPLETE_CHANCE == null){
             root.put("waterDepleteChance", 0.1);
+            WATER_DEPLETE_CHANCE = 0.1;
         }
         else{
             root.put("waterDepleteChance", WATER_DEPLETE_CHANCE);
@@ -113,6 +118,7 @@ public class Config {
 
         if (CONVERSION_CHANCE == null){
             root.put("conversionChance", 0.01);
+            CONVERSION_CHANCE = 0.01;
         }
         else{
             root.put("conversionChance", CONVERSION_CHANCE);
@@ -120,6 +126,7 @@ public class Config {
 
         if (CAULDRON_TIME == null){
             root.put("cauldron_time", 20);
+            CAULDRON_TIME = 20;
         }
         else{
             root.put("cauldron_time", CAULDRON_TIME);
@@ -127,6 +134,7 @@ public class Config {
 
         if (CAULDRON_TICKS == null){
             root.put("cauldronTicks", 5);
+            CAULDRON_TICKS = 5;
         }
         else{
             root.put("cauldronTicks", CAULDRON_TICKS);
