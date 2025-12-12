@@ -1,14 +1,13 @@
 package gravel_to_sand.graveltosand.mixin;
 
-import net.minecraft.block.entity.HopperBlockEntity;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.util.math.Direction;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.Container;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -23,11 +22,11 @@ public abstract class HopperBlockEntityMixin {
 
 
     @Unique
-    private static boolean canInsertStack(ItemStack itemStack, Inventory inventory) {
-        for(int i = 0; i < inventory.size(); i++) {
+    private static boolean canInsertStack(ItemStack itemStack, Container inventory) {
+        for(int i = 0; i < inventory.getContainerSize(); i++) {
             Item item = itemStack.getItem();
-            if(inventory.getStack(i).getItem().equals(item)) {
-                if(inventory.getStack(i).get(DataComponentTypes.CUSTOM_DATA) == null && inventory.getStack(i).getCount() < item.getMaxCount()){
+            if(inventory.getItem(i).getItem().equals(item)) {
+                if(inventory.getItem(i).get(DataComponents.CUSTOM_DATA) == null && inventory.getItem(i).getCount() < item.getDefaultMaxStackSize()){
                     return true;
                 }
             }
@@ -35,20 +34,20 @@ public abstract class HopperBlockEntityMixin {
         return false;
     }
 
-	@Inject(at = @At("HEAD"), method = "extract(Lnet/minecraft/inventory/Inventory;Lnet/minecraft/entity/ItemEntity;)Z")
-	private static void injectExtract(Inventory inventory, ItemEntity itemEntity, CallbackInfoReturnable<Boolean> ci) {
+	@Inject(at = @At("HEAD"), method = "addItem(Lnet/minecraft/world/Container;Lnet/minecraft/world/entity/item/ItemEntity;)Z")
+	private static void injectExtract(Container inventory, ItemEntity itemEntity, CallbackInfoReturnable<Boolean> ci) {
 
-        NbtComponent tag = itemEntity.getStack().get(DataComponentTypes.CUSTOM_DATA);
-        if(tag != null && canInsertStack(itemEntity.getStack(), inventory)){
-            NbtCompound nbt = tag.copyNbt();
+        CustomData tag = itemEntity.getItem().get(DataComponents.CUSTOM_DATA);
+        if(tag != null && canInsertStack(itemEntity.getItem(), inventory)){
+            CompoundTag nbt = tag.copyTag();
             nbt.remove("waterCauldronAge");
             if(!nbt.isEmpty()){
-                tag = NbtComponent.of(nbt);
+                tag = CustomData.of(nbt);
             }
             else{
                 tag = null;
             }
-            itemEntity.getStack().set(DataComponentTypes.CUSTOM_DATA, null);
+            itemEntity.getItem().set(DataComponents.CUSTOM_DATA, null);
         }
 	}
 }

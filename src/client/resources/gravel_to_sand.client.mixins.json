@@ -3,7 +3,6 @@
 	"package": "gravel_to_sand.graveltosand.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"ExampleClientMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

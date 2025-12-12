@@ -6,20 +6,23 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
 
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.block.*;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.predicate.entity.EntityPredicates;
+//import net.minecraft.block.*;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.EntitySelector;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LayeredCauldronBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,16 +50,16 @@ public class GravelToSand implements ModInitializer {
 
     private boolean attemptHalflife(ItemEntity itemEntity) {
         //presumed to be a gravel item entity
-        NbtComponent tag = itemEntity.getStack().get(DataComponentTypes.CUSTOM_DATA);
+        CustomData tag = itemEntity.getItem().get(DataComponents.CUSTOM_DATA);
         if(tag == null){
-            NbtCompound nbt = new NbtCompound();
+            CompoundTag nbt = new CompoundTag();
             nbt.putInt("waterCauldronAge", Config.CAULDRON_TIME);
-            tag = NbtComponent.of(nbt);
-            itemEntity.getStack().set(DataComponentTypes.CUSTOM_DATA, tag);
+            tag = CustomData.of(nbt);
+            itemEntity.getItem().set(DataComponents.CUSTOM_DATA, tag);
             return false;
         }
 
-        NbtCompound nbt = tag.copyNbt();
+        CompoundTag nbt = tag.copyTag();
         boolean succeeded = false;
         if(!nbt.contains("waterCauldronAge")){
             nbt.putInt("waterCauldronAge", Config.CAULDRON_TIME);
@@ -71,8 +74,8 @@ public class GravelToSand implements ModInitializer {
             nbt.putInt("waterCauldronAge", age);
         }
 
-        NbtComponent newTag = NbtComponent.of(nbt);
-        itemEntity.getStack().set(DataComponentTypes.CUSTOM_DATA, newTag);
+        CustomData newTag = CustomData.of(nbt);
+        itemEntity.getItem().set(DataComponents.CUSTOM_DATA, newTag);
         return succeeded;
     }
 
@@ -86,17 +89,17 @@ public class GravelToSand implements ModInitializer {
         }
         checkedCauldrons.removeAll(toRemove);
 
-        for(ServerWorld world : minecraftServer.getWorlds()) {
-            for(ItemEntity itemEntity : world.getEntitiesByType(EntityType.ITEM, EntityPredicates.VALID_ENTITY)) {
-                if (!itemEntity.getStack().isOf(Items.GRAVEL)) {
+        for(ServerLevel world : minecraftServer.getAllLevels()) {
+            for(ItemEntity itemEntity : world.getEntities(EntityType.ITEM, EntitySelector.ENTITY_STILL_ALIVE)) {
+                if (!itemEntity.getItem().is(Items.GRAVEL)) {
                     continue;
                 }
 
-                BlockPos blockPos = itemEntity.getBlockPos();
+                BlockPos blockPos = itemEntity.blockPosition();
                 BlockState blockState = world.getBlockState(blockPos);
 
-                if(blockState.getBlock() instanceof LeveledCauldronBlock cauldronBlock){
-                    CauldronInfo cauldronInfo = new CauldronInfo(Config.CAULDRON_TICKS, blockPos, world.getRegistryKey().hashCode());
+                if(blockState.getBlock() instanceof LayeredCauldronBlock cauldronBlock){
+                    CauldronInfo cauldronInfo = new CauldronInfo(Config.CAULDRON_TICKS, blockPos, world.dimension().hashCode());
                     if(!attemptHalflife(itemEntity)){
                         continue;
                     }
@@ -110,10 +113,10 @@ public class GravelToSand implements ModInitializer {
 
 
                     //all conditions met, lovely stuff
-                    int stackSize = itemEntity.getStack().getCount();
+                    int stackSize = itemEntity.getItem().getCount();
 
                     boolean succeeded = false;
-                    int failed = 0, waterLevel = blockState.get(LeveledCauldronBlock.LEVEL);
+                    int failed = 0, waterLevel = blockState.getValue(LayeredCauldronBlock.LEVEL);
                     while(failed < stackSize){
                         if(world.getRandom().nextDouble() < Config.CONVERSION_CHANCE) {
                             if (world.getRandom().nextDouble() < Config.WATER_DEPLETE_CHANCE) {
@@ -130,27 +133,27 @@ public class GravelToSand implements ModInitializer {
                     }
 
                     if(waterLevel <= 0){
-                        world.setBlockState(blockPos, Blocks.CAULDRON.getDefaultState());
+                        world.setBlockAndUpdate(blockPos, Blocks.CAULDRON.defaultBlockState());
                     }
                     else{
-                        world.setBlockState(blockPos, blockState.with(LeveledCauldronBlock.LEVEL, waterLevel));
+                        world.setBlockAndUpdate(blockPos, blockState.setValue(LayeredCauldronBlock.LEVEL, waterLevel));
                     }
 
                     if (succeeded){
                         ItemStack sandStack = new ItemStack(Items.SAND);
 
-                        ItemEntity sandEntity = new ItemEntity(world, itemEntity.getEntityPos().x, itemEntity.getEntityPos().y, itemEntity.getEntityPos().z, sandStack);
-                        sandEntity.setVelocity(0, 0, 0);
-                        world.spawnEntity(sandEntity);
+                        ItemEntity sandEntity = new ItemEntity(world, itemEntity.position().x, itemEntity.position().y, itemEntity.position().z, sandStack);
+                        sandEntity.setDeltaMovement(0, 0, 0);
+                        world.addFreshEntity(sandEntity);
 
                         //pop sound :3
-                        if(!world.isClient()){
-                            world.playSound(null, blockPos, SoundEvents.ENTITY_CHICKEN_EGG, SoundCategory.BLOCKS, 1.0F, 1.0F);
+                        if(!world.isClientSide()){
+                            world.playSound(null, blockPos, SoundEvents.CHICKEN_EGG, SoundSource.BLOCKS, 1.0F, 1.0F);
                         }
 
                         //set the stack size of the gravel item entity to stackSize - converted amount (if 0 then just kill the item entity)
                         if(stackSize - 1 > 0){
-                            itemEntity.getStack().setCount(stackSize - 1);
+                            itemEntity.getItem().setCount(stackSize - 1);
                         }
                         else{
                             itemEntity.kill(world);

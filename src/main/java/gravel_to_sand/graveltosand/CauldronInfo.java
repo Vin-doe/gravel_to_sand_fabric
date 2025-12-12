@@ -1,6 +1,6 @@
 package gravel_to_sand.graveltosand;
 
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
